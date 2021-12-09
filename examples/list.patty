@@ -1,0 +1,17 @@
+(do
+	(def numbers (fun (n)
+		(if (!= n 0)
+			(++ (numbers (- n 1)) n))))
+
+	(print (take 10 (numbers 100)))
+	(print (fold * (numbers 5)))
+
+	(def xs (list 1 2 3))
+	(def ys (list "a" "b" "c" "d"))
+	(def zs (list 10 20 30 40))
+
+	(for (name value) (zip (list "xs" "ys" "zs") (list xs ys zs))
+		(print name ": " value))
+
+	(print (++ xs ys))
+	(print (zip xs ys zs)))

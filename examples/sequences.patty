@@ -1,0 +1,3 @@
+(do
+	(def positive (seq (n) (+ n 1)))
+	(print (take 10 positive)))
