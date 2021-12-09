@@ -17,6 +17,24 @@ bool Value::is_static_expression(Context &ctx) const
 	}
 }
 
+void Value::subst(Context &ctx)
+{
+	switch (type) {
+	case Type::List:
+		for (auto &el : list)
+			el.subst(ctx);
+		break;
+
+	case Type::Symbol:
+		if (auto v = ctx[sval]; v)
+			*this = *v;
+		break;
+
+	default:
+		;
+	}
+}
+
 Value Value::take(Context &ctx, uint64_t n)
 {
 	switch (type) {

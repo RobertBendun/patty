@@ -13,7 +13,6 @@ void intrinsics(Context &ctx)
 		std::tuple { "*", &Value::operator*= }
 	};
 
-
 	for (auto [name, op] : Math_Operations) {
 		ctx.define(name) = [op = op](auto& ctx, Value args) {
 			auto result = eval(ctx, args.at(0));
@@ -159,12 +158,52 @@ void intrinsics(Context &ctx)
 		return result;
 	};
 
+	ctx.define("zip-with") = [](auto& ctx, Value args) {
+		std::vector<decltype(args.list)> lists;
+		std::vector<decltype(args.list.begin())> iters;
+		auto op = args.at(0);
+
+		for (auto arg : args.tail()) {
+			auto list = eval(ctx, std::move(arg));
+			assert(list.type == Value::Type::List);
+			auto &ref = lists.emplace_back(list.list);
+			iters.emplace_back(ref.begin());
+		}
+
+		Value result;
+		result.type = Value::Type::List;
+		for (;;) {
+			if (!std::ranges::all_of(iters, [lists = lists.begin()](auto it) mutable { return lists++->end() != it; }))
+				break;
+
+
+			Value call;
+			call.type = Value::Type::List;
+			call.list.push_front(args.at(0));
+			for (auto &it : iters) {
+				call.list.push_back(std::move(*it++));
+			}
+
+			result.list.emplace_back(eval(ctx, call));
+		}
+
+		return result;
+	};
+
 	ctx.define("take") = [](auto &ctx, Value args) {
 		Value count = eval(ctx, args.at(0));
 		Value from = eval(ctx, args.at(1));
 		assert(count.type == Value::Type::Int);
 		assert(count.ival >= 0);
 		return from.take(ctx, count.ival);
+	};
+
+	ctx.define("tail") = [](auto &ctx, Value args) {
+		Value tail;
+		tail.type = Value::Type::List;
+		auto source = eval(ctx, args.at(0));
+		tail.list.assign(std::next(source.list.begin()), source.list.end());
+		return tail;
 	};
 
 	ctx.define("fold") = [](auto &ctx, Value args) {
@@ -202,6 +241,7 @@ void intrinsics(Context &ctx)
 		assert(false && "unimplemented");
 	};
 
+
 	ctx.define("seq") = [](auto &ctx, Value args) {
 		Value seq;
 		seq.type = Value::Type::Sequence;
@@ -236,6 +276,11 @@ void intrinsics(Context &ctx)
 			}
 		}
 		return seq;
+	};
+
+	ctx.define("seq!") = [](auto &ctx, Value args) {
+		args.subst(ctx);
+		return ctx.scopes.front()["seq"].cpp_function(ctx, args);
 	};
 
 	// TODO string support

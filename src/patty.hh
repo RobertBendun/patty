@@ -92,6 +92,7 @@ struct Value
 	Value take(Context&, uint64_t n);
 
 	bool is_static_expression(Context &ctx) const;
+	void subst(Context &ctx);
 };
 
 struct Context
