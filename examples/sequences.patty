@@ -1,3 +1,11 @@
 (do
-	(def positive (seq (n) (+ n 1)))
-	(print (take 10 positive)))
+	(def positive (seq (+ n 1)))
+	(def even (seq (* n 2)))
+	(def odd (seq (+ 1 (* n 2))))
+
+	(def mod3 (seq 0 1 2))
+
+	(def truth (seq 0 (do n 1)))
+
+	(for s (list positive even odd mod3 truth)
+		(print (take 10 s))))

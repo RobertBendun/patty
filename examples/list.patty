@@ -10,6 +10,8 @@
 	(def ys (list "a" "b" "c" "d"))
 	(def zs (list 10 20 30 40))
 
+	(print (index 3 zs))
+
 	(for (name value) (zip (list "xs" "ys" "zs") (list xs ys zs))
 		(print name ": " value))
 
