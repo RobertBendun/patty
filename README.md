@@ -8,6 +8,14 @@ Language inspired by one line of Haskell code:
 fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
 ```
 
+In Patty it works like this:
+
+```lisp
+(do
+	(def fibs (seq 1 1 (+ (index n fibs) (index (+ n 1) fibs))))
+	(print (take 10 fibs)))
+```
+
 ## Building
 
 You need to make sure, that you have C++20 compiler, Make and [fmtlib](https://github.com/fmtlib/fmt).
