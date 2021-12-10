@@ -3,17 +3,58 @@
 #include <charconv>
 #include <iostream>
 
-// Expression is considered static
-// where there is no `n` value
 bool Value::is_static_expression(Context &ctx) const
 {
 	switch (type) {
 	case Type::List:
+		if (!list.empty() && list.front().type == Type::Symbol) {
+			for (auto name : { "zip-with", "tail" }) {
+				if (name == list.front().sval)
+					return false;
+			}
+		}
 		return std::ranges::all_of(list, [&](auto const& val) { return val.is_static_expression(ctx); });
 	case Type::Symbol:
 		return sval != "n";
 	default:
 		return true;
+	}
+}
+
+std::optional<uint64_t> Value::size(Context &ctx) const
+{
+	switch (type) {
+	case Value::Type::List:
+		return list.size();
+
+	case Value::Type::Sequence:
+		{
+			auto len = sequence->len(ctx);
+			return len.type == Type::Int ? std::optional<uint64_t>(len.ival) : std::nullopt;
+		}
+
+	case Value::Type::String:
+		return sval.size();
+
+	default:
+		return std::nullopt;
+	}
+}
+
+Value Value::index(Context &ctx, unsigned n)
+{
+	switch (type) {
+	case Value::Type::List:
+		return at(n);
+
+	case Value::Type::Sequence:
+		return sequence->index(ctx, n);
+
+	case Value::Type::String:
+		return Value::integer(sval[n]);
+
+	default:
+		return Value::nil();
 	}
 }
 
@@ -53,7 +94,7 @@ Value Value::take(Context &ctx, uint64_t n)
 	case Type::Sequence:
 		{
 			assert(sequence);
-			return sequence->take(ctx, n);
+			return Sequence::take(*sequence, ctx, n);
 		}
 
 	default:

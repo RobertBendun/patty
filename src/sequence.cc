@@ -1,6 +1,17 @@
 #include "patty.hh"
 
 #include <cmath>
+#include <iostream>
+#include <algorithm>
+
+Value Sequence::take(Sequence &seq, Context &ctx, unsigned n)
+{
+	auto result = seq.take(ctx, n);
+	if (result.type == Value::Type::Sequence)
+		return Sequence::take(*result.sequence, ctx, n);
+	return result;
+}
+
 
 Value Dynamic_Generator::take(Context &ctx, unsigned n)
 {
@@ -12,6 +23,13 @@ Value Dynamic_Generator::take(Context &ctx, unsigned n)
 		result.list.push_back(eval(ctx, expr));
 	}
 	return result;
+}
+
+Value Dynamic_Generator::index(Context &ctx, unsigned n)
+{
+	auto local_scope_guard = ctx.local_scope();
+	ctx.assign("n", Value::integer(n + start));
+	return eval(ctx, expr);
 }
 
 Value Dynamic_Generator::len(Context &)
@@ -42,13 +60,17 @@ Value Circular_Generator::take(Context &ctx, unsigned n)
 	return result;
 }
 
+Value Circular_Generator::index(Context &ctx, unsigned n)
+{
+	return eval(ctx, value_set.at(n % value_set.list.size()));
+}
+
 Value Circular_Generator::len(Context&)
 {
 	return Value::integer(value_set.list.size());
 }
 
-
-Value Circular_Generator::pop(Context &ctx, unsigned n)
+Value Circular_Generator::pop(Context &, unsigned n)
 {
 	auto copy = *this;
 
@@ -88,6 +110,22 @@ Value Composed_Generator::take(Context &ctx, unsigned n)
 	}
 }
 
+Value Composed_Generator::index(Context &ctx, unsigned n)
+{
+	for (;;) {
+		for (auto& gen : children) {
+			if (auto circular = dynamic_cast<Circular_Generator*>(gen.get()); circular != nullptr) {
+				auto size = circular->value_set.list.size();
+				if (n < size)
+					return circular->index(ctx, n);
+				n -= size;
+			} else {
+				return gen->index(ctx, n);
+			}
+		}
+	}
+}
+
 Value Composed_Generator::len(Context &ctx)
 {
 	auto sum = Value::integer(0);
@@ -99,8 +137,84 @@ Value Composed_Generator::len(Context &ctx)
 	return sum;
 }
 
+Value Composed_Generator::pop(Context &, unsigned)
+{
+	assert(false && "unimplemented");
+}
 
-Value Composed_Generator::pop(Context &, unsigned )
+
+Value Value_Sequence::index(Context &ctx, unsigned n)
+{
+	return expr.index(ctx, n);
+}
+
+Value Value_Sequence::take(Context &ctx, unsigned n)
+{
+	return expr.take(ctx, n);
+}
+
+Value Value_Sequence::len(Context &ctx)
+{
+	auto sz = expr.size(ctx);
+	if (sz)
+		return Value::integer(*sz);
+	return Value::nil();
+}
+
+Value Value_Sequence::pop(Context &, unsigned)
+{
+	assert(false && "unimplemented");
+}
+
+#if 0
+struct Zip_Sequence : Sequence
+{
+	std::vector<std::shared_ptr<Sequence>> children;
+	std::function<Value(Value)> zipper;
+#endif
+
+Value Zip_Sequence::index(Context &ctx, unsigned n)
+{
+	Value list;
+	list.type = Value::Type::List;
+	for (auto &seq : children) {
+		list.list.push_back(seq->index(ctx, n));
+	}
+	return zipper(ctx, list);
+}
+
+Value Zip_Sequence::take(Context &ctx, unsigned n)
+{
+	Value list;
+	list.type = Value::Type::List;
+
+	std::vector<Value> takes;
+	for (auto &seq : children) {
+		takes.push_back(seq->take(ctx, n));
+	}
+
+	for (unsigned i = 0; i < n; ++i) {
+		Value frame;
+		frame.type = Value::Type::List;
+
+		for (auto &take : takes) {
+			if (take.list.size() > i)
+				return list;
+			frame.list.push_back(take.at(i));
+		}
+
+		list.list.push_back(zipper(ctx, frame));
+	}
+
+	return list;
+}
+
+Value Zip_Sequence::len(Context &)
+{
+	assert(false && "unimplemented");
+}
+
+Value Zip_Sequence::pop(Context &, unsigned)
 {
 	assert(false && "unimplemented");
 }

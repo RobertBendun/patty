@@ -1,0 +1,3 @@
+(do
+	(def fib (seq 0 1 (zip-with + fib (tail fib))))
+	(print (take 10 fib)))

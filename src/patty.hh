@@ -22,6 +22,7 @@ struct Sequence;
 struct Dynamic_Generator;
 struct Circular_Generator;
 struct Composed_Generator;
+struct Value_Sequence;
 
 extern fs::path program_name;
 extern fs::path filename;
@@ -45,6 +46,9 @@ void intrinsics(Context &ctx);
 
 struct Sequence
 {
+	static Value take(Sequence &seq, Context &ctx, unsigned n);
+
+	virtual Value index(Context &ctx, unsigned n) = 0;
 	virtual Value take(Context &ctx, unsigned n) = 0;
 	virtual Value len(Context &ctx) = 0;
 	virtual Value pop(Context &ctx, unsigned n) = 0;
@@ -90,6 +94,8 @@ struct Value
 	void operator*=(Value const& other);
 
 	Value take(Context&, uint64_t n);
+	std::optional<uint64_t> size(Context &ctx) const;
+	Value index(Context &ctx, unsigned n);
 
 	bool is_static_expression(Context &ctx) const;
 	void subst(Context &ctx);
@@ -123,6 +129,7 @@ struct Dynamic_Generator : Sequence
 	Value expr;
 	int64_t start = 0;
 
+	Value index(Context &ctx, unsigned n) override;
 	Value take(Context &ctx, unsigned n) override;
 	Value len(Context &ctx) override;
 	Value pop(Context &ctx, unsigned n) override;
@@ -132,6 +139,7 @@ struct Circular_Generator : Sequence
 {
 	Value value_set;
 
+  Value index(Context &ctx, unsigned n) override;
 	Value take(Context &ctx, unsigned n) override;
 	Value len(Context &ctx) override;
 	Value pop(Context &ctx, unsigned n) override;
@@ -141,6 +149,28 @@ struct Composed_Generator : Sequence
 {
 	std::vector<std::shared_ptr<Sequence>> children;
 
+	Value index(Context &ctx, unsigned n) override;
+	Value take(Context &ctx, unsigned n) override;
+	Value len(Context &ctx) override;
+	Value pop(Context &ctx, unsigned n) override;
+};
+
+struct Value_Sequence : Sequence
+{
+	Value expr;
+
+	Value index(Context &ctx, unsigned n) override;
+	Value take(Context &ctx, unsigned n) override;
+	Value len(Context &ctx) override;
+	Value pop(Context &ctx, unsigned n) override;
+};
+
+struct Zip_Sequence : Sequence
+{
+	std::vector<std::shared_ptr<Sequence>> children;
+	std::function<Value(Context&, Value)> zipper;
+
+	Value index(Context &ctx, unsigned n) override;
 	Value take(Context &ctx, unsigned n) override;
 	Value len(Context &ctx) override;
 	Value pop(Context &ctx, unsigned n) override;

@@ -15,6 +15,7 @@ void intrinsics(Context &ctx)
 
 	for (auto [name, op] : Math_Operations) {
 		ctx.define(name) = [op = op](auto& ctx, Value args) {
+			assert(args.list.size() >= 1);
 			auto result = eval(ctx, args.at(0));
 			for (auto val : args.tail()) { (result.*op)(eval(ctx, std::move(val))); }
 			return result;
@@ -24,12 +25,15 @@ void intrinsics(Context &ctx)
 	static constexpr auto Comparisons = std::array {
 		std::tuple { "<",  +[](int64_t a, int64_t b) { return a < b; } },
 		std::tuple { "<=", +[](int64_t a, int64_t b) { return a <= b; } },
+		std::tuple { ">",  +[](int64_t a, int64_t b) { return a < b; } },
+		std::tuple { ">=",  +[](int64_t a, int64_t b) { return a < b; } },
 		std::tuple { "!=", +[](int64_t a, int64_t b) { return a != b; } },
 		std::tuple { "=", +[](int64_t a, int64_t b) { return a == b; } }
 	};
 
 	for (auto [name, op] : Comparisons) {
 		ctx.define(name) = [op = op](auto& ctx, Value args) {
+			assert(args.list.size() >= 1);
 			auto prev = eval(ctx, args.at(0));
 			for (auto val : args.tail()) {
 				auto curr = eval(ctx, std::move(val));
@@ -41,12 +45,15 @@ void intrinsics(Context &ctx)
 		};
 	}
 
+
 	ctx.define("do") = [](auto& ctx, Value args) {
+		assert(args.list.size() >= 1);
 		for (auto val : args.init()) eval(ctx, std::move(val));
 		return eval(ctx, args.list.back());
 	};
 
 	ctx.define("def") = [](auto& ctx, Value args) {
+		assert(args.list.size() >= 2);
 		assert(args.type == Value::Type::List);
 		assert(args.list.front().type == Value::Type::Symbol);
 		ctx.assign(args.list.front().sval, eval(ctx, std::move(*std::next(args.list.begin()))));
@@ -65,6 +72,7 @@ void intrinsics(Context &ctx)
 	ctx.define("list") = [](auto&, Value args) { return args; };
 
 	ctx.define("if") = [](auto& ctx, Value args) {
+		assert(args.list.size() >= 2);
 		auto condition = eval(ctx, args.at(0));
 		if (condition.coarce_bool())
 			return eval(ctx, args.at(1));
@@ -95,16 +103,46 @@ void intrinsics(Context &ctx)
 		return list;
 	};
 
+
+	ctx.define("len") = [](Context &ctx, Value args) {
+		assert(args.list.size() >= 1);
+		auto collection = eval(ctx, args.at(0));
+
+		switch (collection.type) {
+		case Value::Type::List:
+			return Value::integer(collection.list.size());
+		case Value::Type::Sequence:
+			return collection.sequence->len(ctx);
+		case Value::Type::String:
+			return Value::integer(collection.sval.size());
+		default:
+			error_fatal("len is supported only for strings, sequences and lists");
+		}
+	};
+
 	ctx.define("index") = [](Context &ctx, Value args) {
+		assert(args.list.size() >= 2);
 		auto index = eval(ctx, args.at(0));
-		auto list = eval(ctx, args.at(1));
+		auto collection = eval(ctx, args.at(1));
 		assert(index.type == Value::Type::Int);
-		assert(list.type == Value::Type::List);
-		return list.at(index.ival);
+
+		switch (collection.type) {
+		case Value::Type::List:
+			return collection.at(index.ival);
+		case Value::Type::Sequence:
+			return collection.sequence->index(ctx, index.ival);
+		case Value::Type::String:
+			return Value::integer(collection.sval[index.ival]);
+		default:
+			error_fatal("index is supported only for strings, sequences and lists");
+		}
 	};
 
 	ctx.define("for") = [](Context &ctx, Value args) {
-		for (auto arg : eval(ctx, args.at(1)).list) {
+		assert(args.list.size() >= 3);
+		auto collection = eval(ctx, args.at(1));
+		assert(collection.type == Value::Type::List);
+		for (auto arg : collection.list) {
 			auto local_scope_guard = ctx.local_scope();
 
 			switch (args.at(0).type) {
@@ -159,35 +197,61 @@ void intrinsics(Context &ctx)
 	};
 
 	ctx.define("zip-with") = [](auto& ctx, Value args) {
-		std::vector<decltype(args.list)> lists;
-		std::vector<decltype(args.list.begin())> iters;
+		std::vector<Value> collections;
+		std::vector<unsigned> indexes;
 		auto op = args.at(0);
 
+		bool contains_sequence = false;
 		for (auto arg : args.tail()) {
-			auto list = eval(ctx, std::move(arg));
-			assert(list.type == Value::Type::List);
-			auto &ref = lists.emplace_back(list.list);
-			iters.emplace_back(ref.begin());
+			auto collection = eval(ctx, std::move(arg));
+			if (collection.type == Value::Type::Sequence)
+				contains_sequence = true;
+			collections.emplace_back(std::move(collection));
+			indexes.emplace_back(0);
+		}
+
+		if (contains_sequence) {
+			auto zip = std::make_shared<Zip_Sequence>();
+
+			zip->zipper = [op = args.at(0)](Context &ctx, Value args) {
+				args.list.push_front(op);
+				return eval(ctx, args);
+			};
+
+			for (auto arg : args.tail()) {
+				if (arg.type == Value::Type::Sequence) {
+					zip->children.push_back(std::move(arg.sequence));
+				} else {
+					Value_Sequence vs;
+					vs.expr = arg;
+					zip->children.push_back(std::make_shared<Value_Sequence>(std::move(vs)));
+				}
+			}
+			Value zipped;
+			zipped.type = Value::Type::Sequence;
+			zipped.sequence = std::move(zip);
+			return zipped;
 		}
 
 		Value result;
 		result.type = Value::Type::List;
-		for (;;) {
-			if (!std::ranges::all_of(iters, [lists = lists.begin()](auto it) mutable { return lists++->end() != it; }))
-				break;
 
+		for (;;) {
+			if (!std::ranges::all_of(indexes, [c = collections.begin(), &ctx](auto it) mutable { return it < c++->size(ctx); }))
+				break;
 
 			Value call;
 			call.type = Value::Type::List;
 			call.list.push_front(args.at(0));
-			for (auto &it : iters) {
-				call.list.push_back(std::move(*it++));
+			unsigned i = 0;
+			for (auto &idx : indexes) {
+				call.list.push_back(collections[i++].index(ctx, idx++));
 			}
 
 			result.list.emplace_back(eval(ctx, call));
 		}
 
-		return result;
+		return Value::nil();
 	};
 
 	ctx.define("take") = [](auto &ctx, Value args) {
