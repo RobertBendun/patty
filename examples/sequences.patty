@@ -3,12 +3,12 @@
 	(def even (seq (* n 2)))
 	(def odd (seq (+ 1 (* n 2))))
 
+	(def repeat (fun (n) (seq! n)))
+	(print "repeat: " (take 10 (repeat 5)))
+
 	(def mod3 (seq 0 1 2))
 
 	(def truth (seq 0 (do n 1)))
-
-	(def foo (seq 0 0 (zip-with + (seq 0 1) (seq 4))))
-	(print "Sequence zipped: " (take 10 foo))
 
 	(for s (list positive even odd mod3 truth)
 		(print (take 10 s))))

@@ -23,14 +23,30 @@ void intrinsics(Context &ctx)
 		};
 	}
 
-	// TODO (Not) Equality for other types then integers
+	static constexpr auto Equality = std::array {
+		std::tuple { "==", &Value::operator== },
+		std::tuple { "!=", &Value::operator!= }
+	};
+
+	for (auto [name, op] : Equality) {
+		ctx.define(name) = [op = op](auto &ctx, Value args) {
+			assert(args.list.size() >= 1);
+			auto prev = eval(ctx, args.at(0));
+			for (auto val : args.tail()) {
+				auto curr = eval(ctx, std::move(val));
+				if (!(prev.*op)(curr)) {
+					return Value::integer(false);
+				}
+			}
+			return Value::integer(true);
+		};
+	}
+
 	static constexpr auto Comparisons = std::array {
 		std::tuple { "<",  +[](int64_t a, int64_t b) { return a < b; } },
 		std::tuple { "<=", +[](int64_t a, int64_t b) { return a <= b; } },
 		std::tuple { ">",  +[](int64_t a, int64_t b) { return a < b; } },
 		std::tuple { ">=",  +[](int64_t a, int64_t b) { return a < b; } },
-		std::tuple { "!=", +[](int64_t a, int64_t b) { return a != b; } },
-		std::tuple { "=", +[](int64_t a, int64_t b) { return a == b; } }
 	};
 
 	for (auto [name, op] : Comparisons) {
@@ -93,6 +109,7 @@ void intrinsics(Context &ctx)
 			switch (v.type) {
 			case Value::Type::Nil:
 				continue;
+
 			case Value::Type::List:
 				if (v.list.empty())
 					continue;

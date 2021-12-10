@@ -7,11 +7,23 @@
 Value Sequence::take(Sequence &seq, Context &ctx, unsigned n)
 {
 	auto result = seq.take(ctx, n);
-	if (result.type == Value::Type::Sequence)
-		return Sequence::take(*result.sequence, ctx, n);
+	if (result.type == Value::Type::List) {
+		unsigned i = 0;
+		for (auto &el : result.list) {
+			if (el.type == Value::Type::Sequence) {
+				auto seq = el;
+				auto result2 = Sequence::take(*el.sequence, ctx, n - i + 1);
+				result.list.erase(std::next(result.list.begin(), i), result.list.end());
+
+				for (auto &el2 : result2.list)
+					result.list.push_back(std::move(el2));
+				return result;
+			}
+			++i;
+		}
+	}
 	return result;
 }
-
 
 Value Dynamic_Generator::take(Context &ctx, unsigned n)
 {

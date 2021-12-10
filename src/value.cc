@@ -3,6 +3,29 @@
 #include <charconv>
 #include <iostream>
 
+bool Value::operator==(Value const& other) const
+{
+	if (type != other.type)
+		return false;
+
+	switch (type) {
+	case Type::Nil: return true;
+	case Type::Int: return ival == other.ival;
+	case Type::Cpp_Function: return (!sval.empty() && !other.sval.empty()) && sval == other.sval;
+	case Type::Symbol:
+	case Type::String: return sval == other.sval;
+	case Type::List: return std::equal(CR(list), CR(other.list));
+	case Type::Sequence: return false;
+	}
+
+	return false;
+}
+
+bool Value::operator!=(Value const& other) const
+{
+	return !(*this == other);
+}
+
 bool Value::is_static_expression(Context &ctx) const
 {
 	switch (type) {

@@ -11,6 +11,9 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
+#define R(Range) std::begin(Range), std::end(Range)
+#define CR(Range) std::cbegin(Range), std::cend(Range)
+
 namespace fs = std::filesystem;
 using namespace std::string_view_literals;
 using namespace fmt::literals;
@@ -92,6 +95,9 @@ struct Value
 	void operator+=(Value const& other);
 	void operator-=(Value const& other);
 	void operator*=(Value const& other);
+
+	bool operator==(Value const& other) const;
+	bool operator!=(Value const& other) const;
 
 	Value take(Context&, uint64_t n);
 	std::optional<uint64_t> size(Context &ctx) const;
