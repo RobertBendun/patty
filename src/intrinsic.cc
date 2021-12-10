@@ -7,6 +7,7 @@ void intrinsics(Context &ctx)
 	if (ctx.scopes.empty())
 		ctx.scopes.emplace_back();
 
+	// TODO division, modulo
 	static constexpr auto Math_Operations = std::array {
 		std::tuple { "+", &Value::operator+= },
 		std::tuple { "-", &Value::operator-= },
@@ -22,6 +23,7 @@ void intrinsics(Context &ctx)
 		};
 	}
 
+	// TODO (Not) Equality for other types then integers
 	static constexpr auto Comparisons = std::array {
 		std::tuple { "<",  +[](int64_t a, int64_t b) { return a < b; } },
 		std::tuple { "<=", +[](int64_t a, int64_t b) { return a <= b; } },
@@ -81,6 +83,8 @@ void intrinsics(Context &ctx)
 		return Value::nil();
 	};
 
+	// TODO alias to concat
+	// TODO sequences concatenation (++ (seq 0 1) (seq 0 2)) == (seq 0 1 0 2)
 	ctx.define("++") = [](auto& ctx, Value args) {
 		Value list;
 		list.type = Value::Type::List;
@@ -104,6 +108,7 @@ void intrinsics(Context &ctx)
 	};
 
 
+	// TODO unify with Value::size()
 	ctx.define("len") = [](Context &ctx, Value args) {
 		assert(args.list.size() >= 1);
 		auto collection = eval(ctx, args.at(0));
@@ -120,6 +125,7 @@ void intrinsics(Context &ctx)
 		}
 	};
 
+	// TODO unify with Value::index()
 	ctx.define("index") = [](Context &ctx, Value args) {
 		assert(args.list.size() >= 2);
 		auto index = eval(ctx, args.at(0));
@@ -138,6 +144,7 @@ void intrinsics(Context &ctx)
 		}
 	};
 
+	// TODO support for sequences
 	ctx.define("for") = [](Context &ctx, Value args) {
 		assert(args.list.size() >= 3);
 		auto collection = eval(ctx, args.at(1));
@@ -170,6 +177,7 @@ void intrinsics(Context &ctx)
 		return Value::nil();
 	};
 
+	// TODO support for sequences, strings
 	ctx.define("zip") = [](auto& ctx, Value args) {
 		std::vector<decltype(args.list)> lists;
 		std::vector<decltype(args.list.begin())> iters;
@@ -196,6 +204,7 @@ void intrinsics(Context &ctx)
 		return result;
 	};
 
+	// TODO ziping sequences does not work (Check examples/sequences.patty)
 	ctx.define("zip-with") = [](auto& ctx, Value args) {
 		std::vector<Value> collections;
 		std::vector<unsigned> indexes;
@@ -262,6 +271,8 @@ void intrinsics(Context &ctx)
 		return from.take(ctx, count.ival);
 	};
 
+	// TODO support for sequences
+	// TODO unification with Value::tail
 	ctx.define("tail") = [](auto &ctx, Value args) {
 		Value tail;
 		tail.type = Value::Type::List;
@@ -270,6 +281,8 @@ void intrinsics(Context &ctx)
 		return tail;
 	};
 
+	// TODO support for sequences
+	// TODO support for strings
 	ctx.define("fold") = [](auto &ctx, Value args) {
 		Value collection = eval(ctx, args.at(1));
 
@@ -293,6 +306,8 @@ void intrinsics(Context &ctx)
 		return Value::nil();
 	};
 
+	// TODO support for all data types
+	// TODO (read value) for parsing s-expressions in string `value`
 	ctx.define("read") = [](auto &, Value args) {
 		assert(args.at(0).type == Value::Type::Symbol);
 

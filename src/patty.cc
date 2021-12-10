@@ -112,6 +112,8 @@ void repl(Context &ctx)
 	}
 }
 
+// TODO Parameter for printing result of evaluation
+// TODO -c mode (like in Python or Bash)
 int main(int, char **argv)
 {
 	program_name = fs::path(*argv++).filename();
@@ -159,7 +161,6 @@ int main(int, char **argv)
 
 	std::string_view source = code;
 	auto value = read(source);
-
 
 	if (!no_eval) {
 		(void)eval(ctx, std::move(value));

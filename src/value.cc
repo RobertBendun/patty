@@ -153,6 +153,7 @@ void print(Value const& value)
 	fmt::print("{}\n", value);
 }
 
+// TODO expose to userspace
 Value read(std::string_view &source)
 {
 	while (!source.empty()) {
@@ -213,6 +214,7 @@ Value read(std::string_view &source)
 	return Value::nil();
 }
 
+// TODO expose to userspace
 Value eval(Context &ctx, Value value)
 {
 	switch (value.type) {

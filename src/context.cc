@@ -23,7 +23,7 @@ void Context::Define_Descriptor::operator=(decltype(Value{}.cpp_function) func)
 	ctx->assign(name, Value::cpp(name, std::move(func)));
 }
 
-Context::Define_Descriptor Context::define(char const* val) 
+Context::Define_Descriptor Context::define(char const* val)
 {
 	return Define_Descriptor{val, this};
 }

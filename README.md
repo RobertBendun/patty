@@ -8,6 +8,33 @@ Language inspired by one line of Haskell code:
 fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
 ```
 
+## Building
+
+You need to make sure, that you have C++20 compiler, Make and [fmtlib](https://github.com/fmtlib/fmt).
+
+To install them on Arch Linux:
+```console
+$ sudo pacman -S fmt gcc make
+```
+
+Then build with
+
+```console
+make patty
+```
+
+And run one of examples with
+```console
+$ ./patty examples/list.patty
+```
+
+Or enter interactive mode (REPL) with:
+```console
+$ ./patty
+```
+
+Since Patty interactive mode does not support readline functionality, usage of tools like [rlwrap](https://github.com/hanslub42/rlwrap) is recommended.
+
 ## Examples
 
 See also [examples](examples/)
